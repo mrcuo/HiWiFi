@@ -160,7 +160,8 @@ actor WiFiConnector {
                 // -3924: Security mode mismatch or other wrong configuration
                 // -3925: kCWAssocFailedErr (Association failed - wrong password/timeout)
                 // -3926: kCWAuthFailedErr (Authentication failed - wrong password)
-                if code == -3905 || code == -3906 || code == -3924 || code == -3925 || code == -3926 {
+                // -3912: kCWChallengeFailureErr (WPA/WPA3 handshake challenge failure - wrong password)
+                if code == -3905 || code == -3906 || code == -3924 || code == -3925 || code == -3926 || code == -3912 {
                     print("[Diagnostic] testViaCorewlan: error matches wrong password list, returning success=false")
                     return (false, domain, code)
                 }
