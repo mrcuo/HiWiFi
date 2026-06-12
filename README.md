@@ -1,7 +1,7 @@
 # WiFi 借一下 (HiWiFi)
 
 <p align="center">
-  <img src="HiWiFi/Resources/AppIcon.icns" width="128" height="128" alt="HiWiFi Logo"><br>
+  <img src="HiWiFi/Resources/AppIcon.png" width="128" height="128" alt="HiWiFi Logo"><br>
   <strong>macOS 原生 WiFi 密码安全测试与强度评估工具</strong><br>
   <em>Native macOS WiFi Password Security Testing & Assessment Tool</em>
 </p>
@@ -87,7 +87,7 @@ graph TD
 
 ```bash
 # 克隆本仓库
-git clone https://github.com/CuoStudio/HiWiFi.git
+git clone https://github.com/mrcuo/HiWiFi.git
 cd HiWiFi
 
 # 赋予构建脚本执行权限
@@ -130,5 +130,5 @@ chmod +x scripts/build.sh
 * [Apple CoreWLAN API](https://developer.apple.com/documentation/corewlan) - 官方无线局域网交互接口。
 
 <p align="center">
-  <sub>Made with ❤️ by <a href="https://github.com/CuoStudio">CuoStudio</a></sub>
+  <sub>Made with ❤️ by <a href="https://github.com/mrcuo">CuoStudio</a></sub>
 </p>
