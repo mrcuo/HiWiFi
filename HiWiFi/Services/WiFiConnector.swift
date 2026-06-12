@@ -28,6 +28,13 @@ actor WiFiConnector {
     private var cachedSSID: String?
     private var useNetworksetupFallback = false
 
+    // MARK: - Mock Mode
+    private var isMockMode = true
+    
+    func setMockMode(_ mock: Bool) {
+        self.isMockMode = mock
+    }
+
     /// Set connection timeout
     func setConnectTimeout(_ timeout: TimeInterval) {
         self.connectTimeout = timeout
@@ -79,6 +86,19 @@ actor WiFiConnector {
     func testPassword(ssid: String, password: String, security: WiFiNetwork.SecurityType) async -> ConnectionAttemptResult {
         let startTime = Date()
         print("[Diagnostic] testPassword started for '\(ssid)' with password '\(password)'")
+        
+        if isMockMode {
+            try? await Task.sleep(for: .milliseconds(300))
+            let success = (password == "12345678" && ssid != "Mock_Open_WiFi") || (password == "password") || (password == "admin")
+            return ConnectionAttemptResult(
+                success: success,
+                duration: Date().timeIntervalSince(startTime),
+                method: "Mock",
+                errorDomain: success ? nil : "MockErrorDomain",
+                errorCode: success ? nil : -3905
+            )
+        }
+        
         if useNetworksetupFallback {
             print("[Diagnostic] testPassword: using networksetup fallback directly")
             let success = await testViaNetworksetup(ssid: ssid, password: password)

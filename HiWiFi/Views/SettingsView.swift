@@ -134,6 +134,15 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            Toggle(isOn: $viewModel.isMockMode) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("开发者模式 (Mock API)")
+                    Text("拦截物理网卡底层调用并返回虚拟接口数据，用于功能开发与 UI 调试")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         } header: {
             Label("高级选项", systemImage: "gearshape.2.fill")
         }

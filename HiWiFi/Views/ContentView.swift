@@ -38,6 +38,16 @@ struct ContentView: View {
             ResultsView()
                 .environmentObject(viewModel)
         }
+        .alert("网络断开警告", isPresented: $viewModel.showSafetyWarning) {
+            Button("取消", role: .cancel) { }
+            Button("继续测试", role: .destructive) {
+                if let network = viewModel.selectedNetwork {
+                    viewModel.startCracking(network: network)
+                }
+            }
+        } message: {
+            Text("密码枚举测试需要独占无线网卡，这将导致您当前的网络暂时断开。\n\n测试结束或手动停止后，系统将尝试自动恢复原有的网络连接。\n\n确定要继续吗？")
+        }
         .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .frame(minWidth: 1040, minHeight: 600)
     }

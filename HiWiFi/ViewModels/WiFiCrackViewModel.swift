@@ -57,6 +57,16 @@ final class WiFiCrackViewModel: ObservableObject {
     @Published var autoCrackAll = false
     @Published var showSettings = false
     @Published var showResults = false
+    @Published var showSafetyWarning = false
+    
+    @AppStorage("isMockMode") var isMockMode = true {
+        didSet {
+            Task {
+                await scanner.setMockMode(isMockMode)
+                await connector.setMockMode(isMockMode)
+            }
+        }
+    }
 
     // Location Permission Manager
     private let locationManager = LocationManager()
@@ -68,6 +78,7 @@ final class WiFiCrackViewModel: ObservableObject {
     private var crackTask: Task<Void, Never>?
     private var timer: Timer?
     private var crackStartTime: Date?
+    private var originalSSID: String?
 
     // MARK: - Init
 
@@ -76,6 +87,11 @@ final class WiFiCrackViewModel: ObservableObject {
         // Prompt for Location Services permission on app startup,
         // which is required for CoreWLAN scanForNetworks to return actual results.
         locationManager.requestLocationPermission()
+        
+        Task {
+            await scanner.setMockMode(isMockMode)
+            await connector.setMockMode(isMockMode)
+        }
     }
 
     // MARK: - Computed
@@ -122,7 +138,12 @@ final class WiFiCrackViewModel: ObservableObject {
             log("请先选择一个 WiFi 网络", level: .warning)
             return
         }
-        startCracking(network: network)
+        
+        if !isMockMode {
+            showSafetyWarning = true
+        } else {
+            startCracking(network: network)
+        }
     }
 
     func startCracking(network: WiFiNetwork) {
@@ -143,6 +164,14 @@ final class WiFiCrackViewModel: ObservableObject {
         updateNetworkStatus(ssid: network.ssid, status: .cracking)
 
         log("开始破解: \(network.ssid) [\(network.security.rawValue)]", level: .info)
+        
+        // Save original network
+        if originalSSID == nil {
+            originalSSID = await scanner.currentSSID
+            if let orig = originalSSID, !isMockMode {
+                log("已记录当前网络: \(orig)，测试结束后将尝试恢复", level: .info)
+            }
+        }
 
         // Build password list
         let passwords = PasswordGenerator.buildPriorityList(
@@ -274,6 +303,39 @@ final class WiFiCrackViewModel: ObservableObject {
         isPaused = false
         timer?.invalidate()
         timer = nil
+        restoreOriginalNetwork()
+    }
+    
+    private func restoreOriginalNetwork() {
+        guard let orig = originalSSID, !isMockMode else {
+            originalSSID = nil
+            return
+        }
+        
+        Task {
+            let current = await scanner.currentSSID
+            if current != orig {
+                log("正在尝试恢复原始网络: \(orig)...", level: .info)
+                
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/sbin/networksetup")
+                process.arguments = ["-setairportnetwork", "en0", orig]
+                
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    
+                    if process.terminationStatus == 0 {
+                        log("恢复网络指令已发送 (需要几秒钟生效)", level: .success)
+                    } else {
+                        log("恢复网络可能失败，请手动在系统设置中重连", level: .warning)
+                    }
+                } catch {
+                    log("执行网络恢复指令失败: \(error.localizedDescription)", level: .error)
+                }
+            }
+            originalSSID = nil
+        }
     }
 
     // MARK: - Timer

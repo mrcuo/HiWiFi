@@ -21,13 +21,25 @@ actor WiFiScanner {
 
     /// Check if WiFi hardware is powered on
     var isPoweredOn: Bool {
-        interface?.powerOn() ?? false
+        if isMockMode { return true }
+        return interface?.powerOn() ?? false
     }
 
     /// Currently connected SSID (nil if not connected)
     var currentSSID: String? {
-        interface?.ssid()
+        if isMockMode { return "Mock_Connected_WiFi" }
+        return interface?.ssid()
     }
+
+    // MARK: - Mock Mode
+    
+    private var isMockMode = true
+    
+    func setMockMode(_ mock: Bool) {
+        self.isMockMode = mock
+    }
+
+
 
     // MARK: - Scanning
 
@@ -35,6 +47,16 @@ actor WiFiScanner {
     /// - Parameter timeout: Not directly used by CoreWLAN, reserved for future use.
     /// - Returns: Array of discovered WiFi networks, sorted by signal strength.
     func scan() throws -> [WiFiNetwork] {
+        if isMockMode {
+            Thread.sleep(forTimeInterval: 1.5)
+            return [
+                WiFiNetwork(ssid: "Mock_Network_5G", bssid: "00:11:22:33:44:55", rssi: -40, channel: 149, security: .wpa2, status: .idle),
+                WiFiNetwork(ssid: "Mock_Network_2G", bssid: "00:11:22:33:44:56", rssi: -60, channel: 6, security: .wpa2, status: .idle),
+                WiFiNetwork(ssid: "Mock_Weak_WiFi", bssid: "00:11:22:33:44:57", rssi: -85, channel: 1, security: .wpa2, status: .idle),
+                WiFiNetwork(ssid: "Mock_Open_WiFi", bssid: "00:11:22:33:44:58", rssi: -50, channel: 11, security: .open, status: .idle)
+            ]
+        }
+
         guard let iface = interface else {
             throw WiFiScanError.noInterface
         }
