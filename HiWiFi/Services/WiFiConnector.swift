@@ -65,9 +65,11 @@ actor WiFiConnector {
             let result = try await testViaCorewlan(target: target, ssid: ssid, password: password)
             return result
         } catch {
-            // CoreWLAN failed with a system/permission error (not wrong password)
-            // Switch to networksetup fallback
-            useNetworksetupFallback = true
+            let nsError = error as NSError
+            // Only switch to networksetup fallback permanently on persistent setup/permission errors
+            if error is ConnectionError || (nsError.domain == CWErrorDomain && nsError.code == -3901) {
+                useNetworksetupFallback = true
+            }
             return await testViaNetworksetup(ssid: ssid, password: password)
         }
     }
@@ -93,11 +95,13 @@ actor WiFiConnector {
             let nsError = error as NSError
             if nsError.domain == CWErrorDomain {
                 let code = nsError.code
-                // Common wrong password error codes:
+                // Common wrong password / association failure error codes:
                 // -3905: Association failed
                 // -3906: Authentication failed
                 // -3924: Security mode mismatch or other wrong configuration
-                if code == -3905 || code == -3906 || code == -3924 {
+                // -3925: kCWAssocFailedErr (Association failed - wrong password/timeout)
+                // -3926: kCWAuthFailedErr (Authentication failed - wrong password)
+                if code == -3905 || code == -3906 || code == -3924 || code == -3925 || code == -3926 {
                     return false
                 }
             }
