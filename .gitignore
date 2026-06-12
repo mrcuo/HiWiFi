@@ -1,0 +1,66 @@
+# ============================================================
+# HiWiFi (WiFi借一下) - .gitignore
+# Swift / Xcode / XcodeGen project
+# ============================================================
+
+# ---------- Xcode ----------
+# XcodeGen generates the .xcodeproj, so we ignore it.
+# IMPORTANT: Do NOT ignore project.yml (XcodeGen spec).
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# ---------- Build artifacts ----------
+build/
+dist/
+DerivedData/
+.build/
+*.app
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcarchive
+
+# ---------- Swift Package Manager ----------
+.swiftpm/
+Package.resolved
+Packages/
+
+# ---------- CocoaPods ----------
+Pods/
+Podfile.lock
+
+# ---------- Carthage ----------
+Carthage/Build/
+Carthage/Checkouts/
+
+# ---------- macOS system files ----------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ---------- Editor / IDE ----------
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+.idea/
+.vscode/
+*.code-workspace
+
+# ---------- Secrets & local config ----------
+*.env
+.env.local
+Secrets/
+
+# ---------- Miscellaneous ----------
+*.log
+*.orig
+*.pyc
+__pycache__/
