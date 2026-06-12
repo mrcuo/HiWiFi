@@ -35,6 +35,11 @@ actor WiFiConnector {
         if let cached = cachedTargetNetwork, cachedSSID == ssid {
             return cached
         }
+        if let cached = CWNetworkCache.shared.get(for: ssid) {
+            cachedTargetNetwork = cached
+            cachedSSID = ssid
+            return cached
+        }
         guard let iface = client.interface() else {
             throw ConnectionError.noInterface
         }

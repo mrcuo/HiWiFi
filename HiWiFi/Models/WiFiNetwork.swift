@@ -127,3 +127,24 @@ extension WiFiNetwork {
         )
     }
 }
+
+/// Thread-safe cache to store scanned CoreWLAN network references for quick connection lookup.
+final class CWNetworkCache {
+    static let shared = CWNetworkCache()
+    private var cache: [String: CWNetwork] = [:]
+    private let lock = NSLock()
+
+    private init() {}
+
+    func set(_ network: CWNetwork, for ssid: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        cache[ssid] = network
+    }
+
+    func get(for ssid: String) -> CWNetwork? {
+        lock.lock()
+        defer { lock.unlock() }
+        return cache[ssid]
+    }
+}

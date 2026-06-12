@@ -49,6 +49,13 @@ actor WiFiScanner {
             throw WiFiScanError.scanFailed(error.localizedDescription)
         }
 
+        // Cache the scanned CWNetwork objects before converting
+        for cw in cwNetworks {
+            if let ssid = cw.ssid {
+                CWNetworkCache.shared.set(cw, for: ssid)
+            }
+        }
+
         let networks = cwNetworks
             .compactMap { WiFiNetwork.from($0) }
             .sorted { $0.rssi > $1.rssi }  // Strongest first
