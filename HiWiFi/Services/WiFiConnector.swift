@@ -41,23 +41,30 @@ actor WiFiConnector {
     }
 
     private func getTargetNetwork(ssid: String) throws -> CWNetwork {
+        print("[Diagnostic] getTargetNetwork started for '\(ssid)'")
         if let cached = cachedTargetNetwork, cachedSSID == ssid {
+            print("[Diagnostic] getTargetNetwork: returning cachedTargetNetwork")
             return cached
         }
         if let cached = CWNetworkCache.shared.get(for: ssid) {
+            print("[Diagnostic] getTargetNetwork: returning CWNetworkCache network")
             cachedTargetNetwork = cached
             cachedSSID = ssid
             return cached
         }
         guard let iface = client.interface() else {
+            print("[Diagnostic] getTargetNetwork: no interface found")
             throw ConnectionError.noInterface
         }
+        print("[Diagnostic] getTargetNetwork: network not in cache, calling scanForNetworks...")
         let networks = try iface.scanForNetworks(withName: ssid)
         guard let target = networks.first(where: { $0.ssid == ssid }) else {
+            print("[Diagnostic] getTargetNetwork: network '\(ssid)' not found in scan")
             throw ConnectionError.networkNotFound(ssid)
         }
         cachedTargetNetwork = target
         cachedSSID = ssid
+        print("[Diagnostic] getTargetNetwork: scanForNetworks succeeded, returning target")
         return target
     }
 
@@ -71,7 +78,9 @@ actor WiFiConnector {
     /// - Returns: `true` if connection succeeded
     func testPassword(ssid: String, password: String, security: WiFiNetwork.SecurityType) async -> ConnectionAttemptResult {
         let startTime = Date()
+        print("[Diagnostic] testPassword started for '\(ssid)' with password '\(password)'")
         if useNetworksetupFallback {
+            print("[Diagnostic] testPassword: using networksetup fallback directly")
             let success = await testViaNetworksetup(ssid: ssid, password: password)
             let duration = Date().timeIntervalSince(startTime)
             return ConnectionAttemptResult(
@@ -85,8 +94,10 @@ actor WiFiConnector {
 
         do {
             let target = try getTargetNetwork(ssid: ssid)
+            print("[Diagnostic] testPassword: got target network, calling testViaCorewlan...")
             let coreResult = try await testViaCorewlan(target: target, ssid: ssid, password: password)
             let duration = Date().timeIntervalSince(startTime)
+            print("[Diagnostic] testPassword: testViaCorewlan finished with success=\(coreResult.success)")
             return ConnectionAttemptResult(
                 success: coreResult.success,
                 duration: duration,
@@ -96,10 +107,13 @@ actor WiFiConnector {
             )
         } catch {
             let nsError = error as NSError
+            print("[Diagnostic] testPassword: caught error \(nsError.domain) (\(nsError.code))")
             let isPersistentError = error is ConnectionError || (nsError.domain == CWErrorDomain && nsError.code == -3901)
             if isPersistentError {
+                print("[Diagnostic] testPassword: marking useNetworksetupFallback = true")
                 useNetworksetupFallback = true
             }
+            print("[Diagnostic] testPassword: running networksetup fallback...")
             let success = await testViaNetworksetup(ssid: ssid, password: password)
             let duration = Date().timeIntervalSince(startTime)
             return ConnectionAttemptResult(
@@ -117,21 +131,27 @@ actor WiFiConnector {
     /// Attempt connection via CoreWLAN CWInterface.associate
     private func testViaCorewlan(target: CWNetwork, ssid: String, password: String) async throws -> (success: Bool, errorDomain: String?, errorCode: Int?) {
         guard let iface = client.interface() else {
+            print("[Diagnostic] testViaCorewlan: no interface found")
             throw ConnectionError.noInterface
         }
 
         do {
+            print("[Diagnostic] testViaCorewlan: calling iface.associate...")
             try iface.associate(to: target, password: password)
+            print("[Diagnostic] testViaCorewlan: iface.associate returned successfully")
             // Wait briefly for interface state to settle
             try await Task.sleep(for: .milliseconds(500))
 
             if iface.ssid() == ssid {
+                print("[Diagnostic] testViaCorewlan: connected SSID matches '\(ssid)'")
                 return (true, nil, nil)
             }
+            print("[Diagnostic] testViaCorewlan: connected SSID is \(iface.ssid() ?? "nil") (does not match '\(ssid)')")
             return (false, nil, nil)
         } catch {
             let nsError = error as NSError
             let domain = nsError.domain
+            print("[Diagnostic] testViaCorewlan: associate threw \(domain) (\(nsError.code))")
             if domain == CWErrorDomain || domain == "com.apple.wifi.apple80211API.error" {
                 let code = nsError.code
                 // Common wrong password / association failure error codes:
@@ -141,9 +161,11 @@ actor WiFiConnector {
                 // -3925: kCWAssocFailedErr (Association failed - wrong password/timeout)
                 // -3926: kCWAuthFailedErr (Authentication failed - wrong password)
                 if code == -3905 || code == -3906 || code == -3924 || code == -3925 || code == -3926 {
+                    print("[Diagnostic] testViaCorewlan: error matches wrong password list, returning success=false")
                     return (false, domain, code)
                 }
             }
+            print("[Diagnostic] testViaCorewlan: error does not match, throwing error")
             // Other errors (e.g. no permission, device busy) should bubble up to trigger networksetup fallback
             throw error
         }
