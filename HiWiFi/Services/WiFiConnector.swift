@@ -98,7 +98,8 @@ actor WiFiConnector {
             return false
         } catch {
             let nsError = error as NSError
-            if nsError.domain == CWErrorDomain {
+            let domain = nsError.domain
+            if domain == CWErrorDomain || domain == "com.apple.wifi.apple80211API.error" {
                 let code = nsError.code
                 // Common wrong password / association failure error codes:
                 // -3905: Association failed
