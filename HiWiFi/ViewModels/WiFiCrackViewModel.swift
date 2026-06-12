@@ -354,6 +354,17 @@ final class WiFiCrackViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Settings Reset
+
+    func resetToDefaults() {
+        passwordSource = .builtin
+        customPasswordPath = ""
+        scanTimeout = 5.0
+        connectTimeout = 8.0
+        autoCrackAll = false
+        log("设置已重置为默认值", level: .info)
+    }
+
     // MARK: - Speed Test
 
     func runSpeedTest() {

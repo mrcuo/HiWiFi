@@ -177,7 +177,14 @@ struct SettingsView: View {
 
     private var footer: some View {
         HStack {
+            Button("重置初始设置") {
+                viewModel.resetToDefaults()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
             Spacer()
+
             Button("完成") {
                 dismiss()
             }
