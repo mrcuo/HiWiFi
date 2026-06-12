@@ -83,6 +83,10 @@ struct CrackProgressView: View {
 
             Spacer()
 
+            if network.status == .success {
+                speedTestSection
+            }
+
             statusDot(network.status)
         }
         .padding(20)
@@ -333,6 +337,55 @@ struct CrackProgressView: View {
             return String(format: "%.1f 个/分", speed * 60)
         } else {
             return String(format: "%.1f 个/秒", speed)
+        }
+    }
+
+    @ViewBuilder
+    private var speedTestSection: some View {
+        if viewModel.isTestingSpeed {
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("正在测速...")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.trailing, 4)
+        } else if let result = viewModel.speedTestResult {
+            HStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    Image(systemName: "gauge.with.needle")
+                        .foregroundStyle(Color.accentColor)
+                    Text(String(format: "%.1f Mbps", result.downloadSpeedMbps))
+                        .font(.system(.body, design: .monospaced).bold())
+                }
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "timer")
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%.0f ms", result.latencyMs))
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                
+                Button {
+                    viewModel.runSpeedTest()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.plain)
+                .help("重新测试网速")
+            }
+            .padding(.trailing, 4)
+        } else {
+            Button("测试网速") {
+                viewModel.runSpeedTest()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(.accentColor)
+            .padding(.trailing, 4)
         }
     }
 

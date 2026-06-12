@@ -13,7 +13,12 @@ final class WiFiCrackViewModel: ObservableObject {
 
     // Network list
     @Published var networks: [WiFiNetwork] = []
-    @Published var selectedNetwork: WiFiNetwork?
+    @Published var selectedNetwork: WiFiNetwork? {
+        didSet {
+            speedTestResult = nil
+            isTestingSpeed = false
+        }
+    }
     @Published var searchText = ""
 
     // Scanning
@@ -31,6 +36,15 @@ final class WiFiCrackViewModel: ObservableObject {
 
     // Results
     @Published var crackedResults: [CrackedResult] = []
+
+    // Speed Test
+    @Published var isTestingSpeed = false
+    @Published var speedTestResult: SpeedTestResult?
+
+    struct SpeedTestResult: Codable {
+        let latencyMs: Double
+        let downloadSpeedMbps: Double
+    }
 
     // Logs
     @Published var logs: [LogEntry] = []
@@ -336,6 +350,49 @@ final class WiFiCrackViewModel: ObservableObject {
             if let json = CrackedResult.exportAsJSON(self.crackedResults) {
                 try? json.write(to: url, atomically: true, encoding: .utf8)
                 self.log("结果已导出到: \(url.lastPathComponent)", level: .success)
+            }
+        }
+    }
+
+    // MARK: - Speed Test
+
+    func runSpeedTest() {
+        guard !isTestingSpeed else { return }
+        isTestingSpeed = true
+        speedTestResult = nil
+        
+        log("开始测试当前 WiFi 的网络性能...", level: .info)
+        
+        Task {
+            do {
+                // 1. Measure Latency (Apple Captive Portal Detection)
+                let latencyStart = Date()
+                let url = URL(string: "https://captive.apple.com/hotspot-detect.html")!
+                var request = URLRequest(url: url)
+                request.httpMethod = "HEAD"
+                request.timeoutInterval = 3.0
+                
+                let (_, _) = try await URLSession.shared.data(for: request)
+                let latency = Date().timeIntervalSince(latencyStart) * 1000.0
+                
+                // 2. Measure Download Speed (1MB file from Cloudflare speed test CDN)
+                let downloadUrl = URL(string: "https://speed.cloudflare.com/__down?bytes=1048576")!
+                let downloadStart = Date()
+                let (data, _) = try await URLSession.shared.data(from: downloadUrl)
+                let downloadTime = Date().timeIntervalSince(downloadStart)
+                
+                let bytesReceived = Double(data.count)
+                let speedMbps = (bytesReceived * 8.0) / (downloadTime * 1024.0 * 1024.0)
+                
+                let result = SpeedTestResult(latencyMs: latency, downloadSpeedMbps: speedMbps)
+                
+                self.speedTestResult = result
+                self.isTestingSpeed = false
+                
+                log(String(format: "测速完成! 延迟: %.0f ms, 下载速度: %.1f Mbps", latency, speedMbps), level: .success)
+            } catch {
+                self.isTestingSpeed = false
+                log("测速失败: 请检查网络连接 (\(error.localizedDescription))", level: .error)
             }
         }
     }
