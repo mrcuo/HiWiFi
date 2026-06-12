@@ -69,19 +69,28 @@ struct CrackProgressView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(network.ssid)
                     .font(.title2.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 HStack(spacing: 10) {
                     StatusBadge(text: network.security.rawValue, style: securityStyle(network.security))
+                        .fixedSize(horizontal: true, vertical: false)
+                        
                     Label("频道 \(network.channel)", systemImage: "antenna.radiowaves.left.and.right.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        
                     Label("\(network.rssi) dBm", systemImage: "chart.bar.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 16)
 
             if network.status == .success {
                 speedTestSection
@@ -358,6 +367,8 @@ struct CrackProgressView: View {
                         .foregroundStyle(Color.accentColor)
                     Text(String(format: "%.1f Mbps", result.downloadSpeedMbps))
                         .font(.system(.body, design: .monospaced).bold())
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
                 
                 HStack(spacing: 4) {
@@ -366,6 +377,8 @@ struct CrackProgressView: View {
                     Text(String(format: "%.0f ms", result.latencyMs))
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
                 
                 Button {
