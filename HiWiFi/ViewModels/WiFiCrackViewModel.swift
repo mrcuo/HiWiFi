@@ -188,23 +188,24 @@ final class WiFiCrackViewModel: ObservableObject {
             log("[\(currentIndex)/\(totalPasswords)] 尝试: \(password)", level: .info)
 
             // Test the password
-            let success = await connector.testPassword(
+            let result = await connector.testPassword(
                 ssid: network.ssid,
                 password: password,
                 security: network.security
             )
 
-            if success {
-                log("✅ 破解成功! SSID: \(network.ssid), 密码: \(password)", level: .success)
+            let durationStr = String(format: "%.2f秒", result.duration)
+            if result.success {
+                log("✅ 破解成功! SSID: \(network.ssid), 密码: \(password) [用时: \(durationStr), 方式: \(result.method)]", level: .success)
                 updateNetworkStatus(ssid: network.ssid, status: .success, password: password)
 
                 // Save result
-                let result = CrackedResult(
+                let resultObj = CrackedResult(
                     ssid: network.ssid,
                     password: password,
                     security: network.security.rawValue
                 )
-                CrackedResult.append(result)
+                CrackedResult.append(resultObj)
                 crackedResults = CrackedResult.loadAll()
 
                 // Copy to clipboard
@@ -213,6 +214,12 @@ final class WiFiCrackViewModel: ObservableObject {
 
                 finishCracking()
                 return
+            } else {
+                var errDetail = ""
+                if let domain = result.errorDomain, let code = result.errorCode {
+                    errDetail = " (错误域: \(domain), 错误码: \(code))"
+                }
+                log("  └─ 失败: 用时 \(durationStr), 方式 \(result.method)\(errDetail)", level: .warning)
             }
 
             // Disconnect after failed attempt

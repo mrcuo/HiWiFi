@@ -6,6 +6,15 @@ import Foundation
 import CoreWLAN
 import SystemConfiguration
 
+/// Results of a password connection attempt, useful for diagnostics.
+struct ConnectionAttemptResult {
+    let success: Bool
+    let duration: TimeInterval
+    let method: String
+    let errorDomain: String?
+    let errorCode: Int?
+}
+
 /// Attempts to connect to a WiFi network with a given password.
 /// Uses CoreWLAN as primary method, falls back to `networksetup` command.
 actor WiFiConnector {
@@ -60,29 +69,53 @@ actor WiFiConnector {
     ///   - password: Password to test
     ///   - security: Security type of the network
     /// - Returns: `true` if connection succeeded
-    func testPassword(ssid: String, password: String, security: WiFiNetwork.SecurityType) async -> Bool {
+    func testPassword(ssid: String, password: String, security: WiFiNetwork.SecurityType) async -> ConnectionAttemptResult {
+        let startTime = Date()
         if useNetworksetupFallback {
-            return await testViaNetworksetup(ssid: ssid, password: password)
+            let success = await testViaNetworksetup(ssid: ssid, password: password)
+            let duration = Date().timeIntervalSince(startTime)
+            return ConnectionAttemptResult(
+                success: success,
+                duration: duration,
+                method: "networksetup",
+                errorDomain: nil,
+                errorCode: nil
+            )
         }
 
         do {
             let target = try getTargetNetwork(ssid: ssid)
-            let result = try await testViaCorewlan(target: target, ssid: ssid, password: password)
-            return result
+            let coreResult = try await testViaCorewlan(target: target, ssid: ssid, password: password)
+            let duration = Date().timeIntervalSince(startTime)
+            return ConnectionAttemptResult(
+                success: coreResult.success,
+                duration: duration,
+                method: "CoreWLAN",
+                errorDomain: coreResult.errorDomain,
+                errorCode: coreResult.errorCode
+            )
         } catch {
             let nsError = error as NSError
-            // Only switch to networksetup fallback permanently on persistent setup/permission errors
-            if error is ConnectionError || (nsError.domain == CWErrorDomain && nsError.code == -3901) {
+            let isPersistentError = error is ConnectionError || (nsError.domain == CWErrorDomain && nsError.code == -3901)
+            if isPersistentError {
                 useNetworksetupFallback = true
             }
-            return await testViaNetworksetup(ssid: ssid, password: password)
+            let success = await testViaNetworksetup(ssid: ssid, password: password)
+            let duration = Date().timeIntervalSince(startTime)
+            return ConnectionAttemptResult(
+                success: success,
+                duration: duration,
+                method: "CoreWLAN (Failed) -> networksetup",
+                errorDomain: nsError.domain,
+                errorCode: nsError.code
+            )
         }
     }
 
     // MARK: - CoreWLAN Method
 
     /// Attempt connection via CoreWLAN CWInterface.associate
-    private func testViaCorewlan(target: CWNetwork, ssid: String, password: String) async throws -> Bool {
+    private func testViaCorewlan(target: CWNetwork, ssid: String, password: String) async throws -> (success: Bool, errorDomain: String?, errorCode: Int?) {
         guard let iface = client.interface() else {
             throw ConnectionError.noInterface
         }
@@ -93,9 +126,9 @@ actor WiFiConnector {
             try await Task.sleep(for: .milliseconds(500))
 
             if iface.ssid() == ssid {
-                return true
+                return (true, nil, nil)
             }
-            return false
+            return (false, nil, nil)
         } catch {
             let nsError = error as NSError
             let domain = nsError.domain
@@ -108,7 +141,7 @@ actor WiFiConnector {
                 // -3925: kCWAssocFailedErr (Association failed - wrong password/timeout)
                 // -3926: kCWAuthFailedErr (Authentication failed - wrong password)
                 if code == -3905 || code == -3906 || code == -3924 || code == -3925 || code == -3926 {
-                    return false
+                    return (false, domain, code)
                 }
             }
             // Other errors (e.g. no permission, device busy) should bubble up to trigger networksetup fallback
